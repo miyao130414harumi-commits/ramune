@@ -29,6 +29,34 @@
   }
   .display { font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif; }
 
+  /* ---------- 年齢認証モーダル ---------- */
+  .age-gate {
+    position: fixed; inset: 0; z-index: 100;
+    background: linear-gradient(160deg, var(--deep) 0%, #2380B0 70%, #3FA8DC 100%);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .age-gate.hidden { display: none; }
+  .age-card {
+    background: #fff; border-radius: 20px; padding: 30px 24px;
+    max-width: 400px; width: 100%; text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,.25);
+  }
+  .age-logo { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 30px; color: var(--primary); letter-spacing: .06em; }
+  .age-title { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700; font-size: 18px; margin-top: 14px; }
+  .age-text { font-size: 13px; color: var(--sub); margin-top: 8px; }
+  .age-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .age-yes {
+    padding: 16px; border: none; border-radius: 12px; cursor: pointer;
+    background: var(--primary); color: #fff; font-size: 17px; font-weight: 700;
+  }
+  .age-yes:active { opacity: .85; }
+  .age-no {
+    padding: 14px; border: 2px solid #D8E6EE; border-radius: 12px; cursor: pointer;
+    background: #fff; color: var(--sub); font-size: 15px; font-weight: 500;
+  }
+  .age-yes:focus-visible, .age-no:focus-visible { outline: 3px solid var(--deep); outline-offset: 2px; }
+  .age-note { font-size: 11px; color: #A9BCC6; margin-top: 16px; }
+
   /* ---------- ヘッダー ---------- */
   header {
     background: linear-gradient(135deg, var(--deep) 0%, #2380B0 60%, #3FA8DC 100%);
@@ -50,6 +78,24 @@
     border: 1.5px solid rgba(255,255,255,.7); border-radius: 999px; padding: 2px 10px;
     position: relative; z-index: 1;
   }
+
+  /* ---------- LINE友だち追加バナー ---------- */
+  .line-banner {
+    display: none; /* OFFICIAL_LINE_URL設定時にJSで表示 */
+    max-width: 560px; margin: 14px auto 0; padding: 0 14px;
+  }
+  .line-banner a {
+    display: flex; align-items: center; gap: 12px; text-decoration: none;
+    background: linear-gradient(135deg, #06C755, #05A847);
+    border-radius: 14px; padding: 14px 16px; color: #fff;
+    box-shadow: 0 3px 12px rgba(6,199,85,.3);
+  }
+  .line-banner a:active { opacity: .9; }
+  .line-banner .icon { font-size: 26px; }
+  .line-banner .txt { flex: 1; }
+  .line-banner .txt strong { display: block; font-family: 'Zen Maru Gothic', sans-serif; font-weight: 700; font-size: 15px; }
+  .line-banner .txt span { font-size: 12px; opacity: .9; }
+  .line-banner .arrow { font-size: 18px; font-weight: 700; }
 
   /* ---------- フィルタ ---------- */
   .filters { padding: 14px 14px 4px; position: sticky; top: 0; background: var(--bg); z-index: 5; }
@@ -162,11 +208,37 @@
 </head>
 <body>
 
+<!-- 年齢認証 -->
+<div class="age-gate" id="ageGate">
+  <div class="age-card">
+    <div class="age-logo">ラムネ</div>
+    <div class="age-title">あなたは18歳以上ですか？</div>
+    <div class="age-text">当サイトは風俗求人情報を含むため、<br>18歳未満(高校生含む)の方はご利用いただけません。</div>
+    <div class="age-btns">
+      <button class="age-yes" onclick="ageYes()">はい、18歳以上です</button>
+      <button class="age-no" onclick="ageNo()">いいえ、18歳未満です</button>
+    </div>
+    <div class="age-note">「はい」を選択すると、18歳以上であることに同意したものとみなします。</div>
+  </div>
+</div>
+
 <header>
   <div class="site-name">ラム<span class="accent">ネ</span></div>
   <div class="tagline">全国の風俗求人・高収入バイト</div>
   <span class="r18">18歳未満(高校生含む)応募不可</span>
 </header>
+
+<!-- LINE友だち追加バナー(OFFICIAL_LINE_URL設定時のみ表示) -->
+<div class="line-banner" id="lineBanner">
+  <a id="lineBannerLink" href="#" target="_blank" rel="noopener" onclick="track('line_friend_click', null)">
+    <span class="icon">🍹</span>
+    <span class="txt">
+      <strong>新着求人をLINEでお知らせ</strong>
+      <span>友だち追加して最新の高収入求人をゲット</span>
+    </span>
+    <span class="arrow">›</span>
+  </a>
+</div>
 
 <div class="filters">
   <div class="filter-label">都道府県</div>
@@ -206,6 +278,7 @@
 // 設定 — ここだけ書き換える
 // ================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwywJH85jgJCjqEtsY47r4jA9SIOPoIGEN2dfXSGIJarzktdDBhoJpa4KdNU5nbWVie/exec'; // GASのWebアプリURL
+const OFFICIAL_LINE_URL = ''; // ラムネ公式LINEの友だち追加URL(https://lin.ee/…)。空の間はバナー非表示
 
 // 都道府県の表示順(北→南)。スプシの表記はこれに合わせる(「千葉県」のように「県」まで書く)
 const PREF_ORDER = [
@@ -253,8 +326,43 @@ const DEMO_STORES = [
 ];
 
 // ================================================
+// 年齢認証
+// 一度「はい」を選んだ端末では次回から表示しない(localStorage)
+// ================================================
+const AGE_KEY = 'ramune_age_verified';
+
+function initAgeGate() {
+  let verified = false;
+  try { verified = localStorage.getItem(AGE_KEY) === 'yes'; } catch (e) { /* プライベートモード等 */ }
+  if (verified) {
+    document.getElementById('ageGate').classList.add('hidden');
+  } else {
+    document.body.style.overflow = 'hidden'; // 認証まで背景スクロール禁止
+  }
+}
+
+function ageYes() {
+  try { localStorage.setItem(AGE_KEY, 'yes'); } catch (e) { /* 保存できなくても入場は許可 */ }
+  document.getElementById('ageGate').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function ageNo() {
+  location.href = 'https://www.yahoo.co.jp/';
+}
+
+// ================================================
+// LINE友だち追加バナー
+// ================================================
+function initLineBanner() {
+  if (!OFFICIAL_LINE_URL) return;
+  document.getElementById('lineBannerLink').href = OFFICIAL_LINE_URL;
+  document.getElementById('lineBanner').style.display = 'block';
+}
+
+// ================================================
 // アクセス計測
-// pageview / detail / line_click / tel_click をGASに送る
+// pageview / detail / line_click / tel_click / line_friend_click をGASに送る
 // sendBeacon = ページ遷移(LINEアプリ起動や電話発信)しても送信が生き残る方式
 // ================================================
 function track(event, store) {
@@ -450,6 +558,8 @@ function closeDetail() {
   document.body.style.overflow = '';
 }
 
+initAgeGate();
+initLineBanner();
 load();
 </script>
 </body>
