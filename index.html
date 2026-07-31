@@ -144,6 +144,25 @@
   }
   .salary::before { content: '💰 '; font-size: 16px; }
 
+  /* ---------- 気になる(お気に入り) ---------- */
+  .store-card { position: relative; }
+  .fav-btn {
+    position: absolute; top: 10px; right: 10px; z-index: 2;
+    width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(255,255,255,.92); font-size: 20px; line-height: 1;
+    box-shadow: 0 2px 8px rgba(23,90,128,.2); color: #C2D2DC;
+  }
+  .fav-btn.on { color: #E8447A; }
+  .fav-btn:active { transform: scale(.92); }
+  .fav-detail {
+    width: 100%; margin: 4px 0 12px; padding: 13px; border-radius: 12px;
+    border: 2px solid #F3C9D8; background: #fff; color: #E8447A;
+    font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .fav-detail.on { background: #FDEDF3; }
+  .chip.fav { border-color: #F3C9D8; color: #E8447A; }
+  .chip.fav.on { background: #E8447A; border-color: #E8447A; color: #fff; }
+
   /* ---------- 詳細モーダル ---------- */
   .modal {
     position: fixed; inset: 0; background: var(--bg); z-index: 20;
@@ -177,6 +196,12 @@
     font-size: 12.5px; font-weight: 500; background: var(--primary-soft); color: var(--deep);
     border-radius: 8px; padding: 5px 10px;
   }
+  .tpl-copy {
+    width: 100%; margin-top: 10px; padding: 13px; border: none; border-radius: 12px;
+    background: var(--primary); color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .tpl-copy:active { opacity: .85; }
 
   /* ---------- 応募バー ---------- */
   .apply-bar {
@@ -242,6 +267,9 @@
 </div>
 
 <div class="filters">
+  <div class="chip-row">
+    <button class="chip fav" id="favChip" onclick="toggleFavView()">♡ 気になるリスト(0)</button>
+  </div>
   <div class="filter-label">都道府県</div>
   <div class="chip-row" id="prefChips"></div>
   <div class="filter-label">エリア</div>
@@ -362,6 +390,49 @@ function initLineBanner() {
 }
 
 // ================================================
+// 気になる(お気に入り)
+// 端末内(localStorage)だけに保存。会員登録なしでキープできる
+// ================================================
+const FAV_KEY = 'ramune_favs';
+let favs = [];
+try { favs = JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch (e) { favs = []; }
+let showFavsOnly = false;
+
+function saveFavs() { try { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); } catch (e) {} }
+function isFav(id) { return favs.indexOf(id) !== -1; }
+
+function toggleFav(ev, id) {
+  if (ev) ev.stopPropagation(); // カードタップ(詳細を開く)と区別する
+  const i = favs.indexOf(id);
+  if (i === -1) {
+    favs.push(id);
+    const s = stores.find(x => x.id === id);
+    if (s) track('favorite', s); // ♡した瞬間だけ計測(解除は送らない)
+  } else {
+    favs.splice(i, 1);
+  }
+  saveFavs();
+  render();
+  // 詳細モーダルを開いてる最中ならそっちのボタンも更新
+  const dBtn = document.getElementById('favDetailBtn');
+  if (dBtn && dBtn.dataset.id === id) {
+    dBtn.classList.toggle('on', isFav(id));
+    dBtn.textContent = isFav(id) ? '♥ 気になるに保存済み' : '♡ 気になるに保存';
+  }
+}
+
+function toggleFavView() {
+  showFavsOnly = !showFavsOnly;
+  render();
+}
+
+function updateFavChip() {
+  const chip = document.getElementById('favChip');
+  chip.classList.toggle('on', showFavsOnly);
+  chip.textContent = (showFavsOnly ? '♥' : '♡') + ' 気になるリスト(' + favs.length + ')';
+}
+
+// ================================================
 // アクセス計測
 // pageview / detail / line_click / tel_click / line_friend_click をGASに送る
 // sendBeacon = ページ遷移(LINEアプリ起動や電話発信)しても送信が生き残る方式
@@ -452,6 +523,8 @@ function renderChips(elId, values, current, onPick, extraClass) {
 }
 
 function render() {
+  updateFavChip();
+
   // 都道府県チップ(北→南で並べる)
   const prefs = ['すべて', ...sortPrefs([...new Set(stores.map(s => s.pref).filter(Boolean))])];
   renderChips('prefChips', prefs, filterPref, v => {
@@ -468,6 +541,7 @@ function render() {
   renderChips('genreChips', uniq(inPref.map(s => s.genre)), filterGenre, v => { filterGenre = v; render(); });
 
   const list = stores.filter(s =>
+    (!showFavsOnly || isFav(s.id)) &&
     (filterPref === 'すべて' || s.pref === filterPref) &&
     (filterArea === 'すべて' || s.area === filterArea) &&
     (filterGenre === 'すべて' || s.genre === filterGenre)
@@ -475,12 +549,15 @@ function render() {
 
   const main = document.getElementById('storeList');
   if (list.length === 0) {
-    main.innerHTML = '<div class="status">条件に合う求人が見つかりませんでした。<br>フィルタを変えてみてください。</div>';
+    main.innerHTML = showFavsOnly
+      ? '<div class="status">まだ「気になる」した求人がないよ。<br>♥マークをタップして保存してね。</div>'
+      : '<div class="status">条件に合う求人が見つかりませんでした。<br>フィルタを変えてみてください。</div>';
     return;
   }
 
   main.innerHTML = list.map(s => `
     <div class="store-card" onclick="openDetail('${esc(s.id)}')">
+      <button class="fav-btn ${isFav(s.id) ? 'on' : ''}" onclick="toggleFav(event, '${esc(s.id)}')" aria-label="気になるに保存">♥</button>
       ${s.photo
         ? `<img class="photo" src="${esc(s.photo)}" alt="${esc(s.name)}" loading="lazy">`
         : `<div class="photo-fallback display">${esc((s.name || '?').slice(0, 1))}</div>`}
@@ -526,12 +603,20 @@ function openDetail(id) {
 
       <div class="detail-salary"><small>給与</small>${esc(s.salary)}</div>
 
+      <button id="favDetailBtn" data-id="${esc(s.id)}" class="fav-detail ${isFav(s.id) ? 'on' : ''}" onclick="toggleFav(event, '${esc(s.id)}')">${isFav(s.id) ? '♥ 気になるに保存済み' : '♡ 気になるに保存'}</button>
+
       <div class="section"><h3>勤務時間</h3><p>${esc(s.hours)}</p></div>
       <div class="section"><h3>待遇</h3>
         <div class="benefit-tags">${benefits.map(b => `<span>${esc(b)}</span>`).join('')}</div>
       </div>
       <div class="section"><h3>応募条件</h3><p>${esc(s.requirements)}</p></div>
       ${s.description ? `<div class="section"><h3>お店から</h3><p>${esc(s.description)}</p></div>` : ''}
+      <div class="section">
+        <h3>応募のしかた</h3>
+        <p style="font-size:13px;color:var(--sub);">下のメッセージをコピーして、LINEボタンからそのまま送るだけでOK!</p>
+        <p style="margin-top:8px;background:var(--primary-soft);border-radius:10px;padding:10px 12px;">${esc(getTemplate(s))}</p>
+        <button class="tpl-copy" id="tplCopyBtn" onclick="copyTemplate('${esc(s.id)}')">📋 応募メッセージをコピー</button>
+      </div>
     </div>
   `;
 
@@ -551,6 +636,48 @@ function openDetail(id) {
 function trackApply(id, event) {
   const s = stores.find(x => x.id === id);
   if (s) track(event, s);
+}
+
+// ================================================
+// 応募メッセージテンプレ
+// 店がadmin.htmlで書いたテンプレを表示。未記入ならラムネ標準のを出す
+// ================================================
+const DEFAULT_TEMPLATE = 'はじめまして！ラムネを見て応募しました。\nお名前：\n年齢：\n希望：体験入店から相談したいです';
+
+function getTemplate(s) {
+  return (s.template && String(s.template).trim()) ? String(s.template) : DEFAULT_TEMPLATE;
+}
+
+function copyTemplate(id) {
+  const s = stores.find(x => x.id === id);
+  if (!s) return;
+  const text = getTemplate(s);
+  const done = () => {
+    const btn = document.getElementById('tplCopyBtn');
+    if (btn) {
+      btn.textContent = '✅ コピーしたよ!LINEに貼ってね';
+      setTimeout(() => {
+        const b = document.getElementById('tplCopyBtn');
+        if (b) b.textContent = '📋 応募メッセージをコピー';
+      }, 2500);
+    }
+    track('template_copy', s);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy_(text, done));
+  } else {
+    fallbackCopy_(text, done);
+  }
+}
+
+function fallbackCopy_(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { /* 古い端末対策 */ }
+  document.body.removeChild(ta);
+  done();
 }
 
 function closeDetail() {
