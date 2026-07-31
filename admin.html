@@ -52,7 +52,7 @@
   .ok { color: var(--ok); } .ng { color: var(--ng); }
   .hidden { display: none; }
   /* 実績カード */
-  .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .stat {
     background: var(--primary-soft); border-radius: 12px; padding: 10px 6px; text-align: center;
   }
@@ -98,7 +98,7 @@
     <div class="stats" id="monthStats"></div>
     <div style="font-size:12px;color:var(--sub);margin:10px 0 6px;">累計</div>
     <div class="stats" id="totalStats"></div>
-    <div class="stats-note">「応募」はLINE・電話ボタンのタップ数です</div>
+    <div class="stats-note">「応募」はLINE・電話ボタンのタップ数、「気になる」はお気に入り登録数です</div>
   </div>
 
   <div class="card">
@@ -121,6 +121,8 @@
     <input id="f_line" placeholder="https://line.me/R/ti/p/@...">
     <label>電話番号</label>
     <input id="f_tel" placeholder="0431234567">
+    <label>応募メッセージのテンプレ(応募者がコピーしてLINEで送る文。空欄ならラムネ標準の文が出ます)</label>
+    <textarea id="f_template" rows="4" placeholder="はじめまして！ラムネを見て応募しました。&#10;お名前：&#10;年齢：&#10;希望日時："></textarea>
     <button id="saveBtn" onclick="saveStore()">保存する</button>
     <button class="btn-sub" onclick="logout()">ログアウト</button>
     <div id="adminStatus" style="text-align:center;font-size:14px;margin-top:10px;min-height:22px;"></div>
@@ -219,6 +221,7 @@ async function enterAdmin() {
     document.getElementById('f_photo').value = s.photo || '';
     document.getElementById('f_line').value = s.line || '';
     document.getElementById('f_tel').value = s.tel || '';
+    document.getElementById('f_template').value = s.template || '';
 
     renderStats(statsRes.result);
     show('adminView');
@@ -235,9 +238,9 @@ function renderStats(st) {
   const cell = (num, lbl, gold) =>
     `<div class="stat ${gold ? 'gold' : ''}"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
   document.getElementById('monthStats').innerHTML =
-    cell(st.month.detail, '詳細閲覧') + cell(st.month.line, 'LINE応募', true) + cell(st.month.tel, '電話応募', true);
+    cell(st.month.detail, '詳細閲覧') + cell(st.month.fav || 0, '気になる') + cell(st.month.line, 'LINE応募', true) + cell(st.month.tel, '電話応募', true);
   document.getElementById('totalStats').innerHTML =
-    cell(st.total.detail, '詳細閲覧') + cell(st.total.line, 'LINE応募', true) + cell(st.total.tel, '電話応募', true);
+    cell(st.total.detail, '詳細閲覧') + cell(st.total.fav || 0, '気になる') + cell(st.total.line, 'LINE応募', true) + cell(st.total.tel, '電話応募', true);
 }
 
 async function saveStore() {
@@ -258,6 +261,7 @@ async function saveStore() {
         photo: document.getElementById('f_photo').value.trim(),
         line: document.getElementById('f_line').value.trim(),
         tel: document.getElementById('f_tel').value.trim(),
+        template: document.getElementById('f_template').value.trim(),
       },
     });
     if (!res.ok) throw new Error(res.error);
